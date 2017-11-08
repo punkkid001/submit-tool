@@ -1,24 +1,30 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # Submit Tool v 1.1
-import urllib, urllib2
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+import os
 import sys
 import json
-import os
 import time
+import requests
 from getpass import getpass
-r=lambda : sys.stdin.readline()
+
+
+r = lambda : sys.stdin.readline()
+
 
 def get_source(filename):
     if not os.path.exists(filename):
-        return ({'error':True,'error_text':u'%s는 없는 파일입니다'%filename},'')
+        return ({'error': True, 'error_text': '%s는 없는 파일입니다' % filename}, '')
     fp = open(filename,'r')
     source = fp.read()
     fp.close()
-    return ({'error':False},source)
+    return ({'error': False}, source)
+
 
 def get_language(filename):
     dummy, extension = os.path.splitext(filename)
+
     if len(extension) == 0:
         return -1
     if extension in ['.c']:
@@ -107,107 +113,126 @@ def get_language(filename):
         return 61
     return -1
 
+
 def submit(username, password, problem_id, source, language):
     url = 'https://www.acmicpc.net/cmd/submit'
-    values = {'username':username, 'password':password,
-            'problem_id':problem_id,'source':source,
-            'language':language, 'version':'1.1'}
-    user_agent = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
-    hdr = {'User-Agent':user_agent}
-    data = urllib.urlencode(values)
-    req = urllib2.Request(url,data,hdr)
-    response = urllib2.urlopen(req)
-    result = response.read()
-    response.close()
-    result = json.loads(result)
-    return result
+    values = {
+        'username': username,
+        'password': password,
+        'problem_id': problem_id,
+        'source': source,
+        'language': language,
+        'version': '1.1'
+    }
+    user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
+    header = {'User-Agent': user_agent}
+    response = requests.post(url, headers=header, data=values)
+
+    return response.json()
+
 
 def get_result(solution_id, key):
-    results = [u'기다리는 중',u'재채점을 기다리는 중',
-    u'컴파일 하는 중',u'채점중',u'맞았습니다!!',
-    u'출력 형식이 잘못되었습니다',u'틀렸습니다',u'시간 초과',
-    u'메모리 초과',u'출력 초과',u'런타임 에러',u'컴파일 에러']
-    print u'채점 번호: %d' % solution_id
+    results = [
+        '기다리는 중','재채점을 기다리는 중',
+        '컴파일 하는 중','채점중','맞았습니다!!',
+        '출력 형식이 잘못되었습니다','틀렸습니다','시간 초과',
+        '메모리 초과','출력 초과','런타임 에러','컴파일 에러'
+    ]
+
+    print('채점 번호: %d' % solution_id)
+
     while True:
         url = 'https://www.acmicpc.net/cmd/status'
-        values = {'solution_id':solution_id, 'key':key}
-        user_agent = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7'
-        hdr = {'User-Agent':user_agent}
-        data = urllib.urlencode(values)
-        req = urllib2.Request(url,data,hdr)
-        response = urllib2.urlopen(req)
-        result = response.read()
-        response.close()
-        result = json.loads(result)
+        values = {'solution_id': solution_id, 'key': key}
+        user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
+        header = {'User-Agent': user_agent}
+        response = requests.post(url, headers=header, data=values)
+
+        result = response.json()
+
         if result['error']:
-            print result['error_text']
+            print(result['error_text'])
             return
+
         ans = result['result']
         eval_result = int(ans['result'])
+
         if eval_result == 3:
             if 'progress' in result:
-                print u'%s (%s%%)' % (results[eval_result],result['progress'])
+                print('%s (%s%%)' % (results[eval_result], result['progress']))
             else:
-                print u'%s' % (results[eval_result])
+                print('%s' % (results[eval_result]))
         else:
-            print results[eval_result]
+            print(results[eval_result])
         if eval_result >= 4:
             if eval_result == 4:
-                print u'메모리: %(memory)s KB\n시간: %(time)s MS\n코드 길이: %(code_length)s B' % ans
+                print('메모리: %(memory)s KB\n시간: %(time)s MS\n코드 길이: %(code_length)s B' % ans)
             else:
-                print u'코드 길이: %(code_length)s B' % ans
+                print('코드 길이: %(code_length)s B' % ans)
             if eval_result == 10 or eval_result == 11:
-                print u'%s 메시지' % results[eval_result]
-                print result['error_text']
+                print('%s 메시지' % results[eval_result])
+                print(result['error_text'])
             break
         time.sleep(1)
 
+
 def get_problem_id_from_filename(filename):
     problem_id, extension = os.path.splitext(filename)
+
     if problem_id.isdigit():
         return int(problem_id)
     else:
         return -1
+
+
 def main():
     argv = sys.argv[1:]
+
     if len(argv) < 1 or len(argv) > 2:
-        print u'사용법: python submit.py filename'
-        print u'사용법: python submit.py problem_id filename'
+        print('사용법: python submit.py filename')
+        print('사용법: python submit.py problem_id filename')
         return
+
     if len(argv) == 1:
         filename = argv[0]
         problem_id = get_problem_id_from_filename(filename)
         if problem_id == -1:
-            print u'파일 이름은 문제번호.확장자 형식이 되어야 합니다'
+            print('파일 이름은 문제번호.확장자 형식이 되어야 합니다')
             return
     else:
         problem_id = int(argv[0])
         filename = argv[1]
+
     language = 1
     res,source = get_source(filename)
+
     if res['error']:
-        print res['error_text']
+        print(res['error_text'])
         return
+
     language = get_language(filename)
+
     if language == -1:
-        print u'무슨 언어인지 모르겠어요. 확장자를 확인해 주세요'
+        print('무슨 언어인지 모르겠어요. 확장자를 확인해 주세요')
         return
-    sys.stdout.write(u'아이디: ')
-    username = r().strip()
-    sys.stdout.write(u'비밀번호: ')
-    password = getpass('')
+
+    username = input('아이디: ')
+    password = getpass('비밀번호: ')
+
     if len(username) == 0:
-        print u'아이디를 입력해 주세요'
+        print('아이디를 입력해 주세요')
         return
     if len(password) == 0:
-        print u'비밀번호를 입력해 주세요'
+        print('비밀번호를 입력해 주세요')
         return
-    res = submit(username,password,problem_id,source,language)
+    res = submit(username, password, problem_id, source, language)
     if res['error']:
-        print res['error_text']
+        print(res['error_text'])
         return
     if 'notice' in res:
-        print res['notice']
+        print(res['notice'])
     get_result(res['solution_id'], res['key'])
+
+
 if __name__ == '__main__':
     main()
